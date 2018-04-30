@@ -52,7 +52,7 @@ metadata:
 data:
   config.json: |
     {
-        "Description": "CNCF v1.9 or v.1.10 Conformance Results",
+        "Description": "CNCF v1.8 or v1.9 Conformance Results",
         "Filters": {
             "LabelSelector": "",
             "Namespaces": ".*"
@@ -72,7 +72,7 @@ data:
             "bindport": 8080,
             "timeoutseconds": 5400
         },
-        "Version": "v0.10.0"
+        "Version": "v0.9.0"
     }
 ---
 apiVersion: v1
@@ -83,32 +83,21 @@ metadata:
   name: sonobuoy-plugins-cm
   namespace: sonobuoy
 data:
-  e2e.tmpl: |
-    apiVersion: v1
-    kind: Pod
-    metadata:
-      annotations:
-        sonobuoy-driver: Job
-        sonobuoy-plugin: e2e
-        sonobuoy-result-type: e2e
-      labels:
-        component: sonobuoy
-        sonobuoy-run: '{{.SessionID}}'
-        tier: analysis
-      name: sonobuoy-e2e-job-{{.SessionID}}
-      namespace: '{{.Namespace}}'
+  e2e.yaml: |
+    driver: Job
+    name: e2e
+    resultType: e2e
     spec:
       containers:
       - env:
         - name: E2E_FOCUS
           value: '\[Conformance\]'
-        image: gcr.io/heptio-images/kube-conformance:v1.10
+        image: gcr.io/heptio-images/kube-conformance:v1.9
         imagePullPolicy: Always
         name: e2e
         volumeMounts:
         - mountPath: /tmp/results
           name: results
-          readOnly: false
       - command:
         - sh
         - -c
@@ -121,17 +110,14 @@ data:
               fieldPath: spec.nodeName
         - name: RESULTS_DIR
           value: /tmp/results
-        - name: MASTER_URL
-          value: '{{.MasterAddress}}'
-        - name: RESULT_TYPE
-          value: e2e
-        image: gcr.io/heptio-images/sonobuoy:v0.10.0
+        image: gcr.io/heptio-images/sonobuoy:v0.9.0
         imagePullPolicy: Always
         name: sonobuoy-worker
         volumeMounts:
+        - mountPath: /etc/sonobuoy
+          name: config
         - mountPath: /tmp/results
           name: results
-          readOnly: false
       restartPolicy: Never
       serviceAccountName: sonobuoy-serviceaccount
       tolerations:
@@ -143,6 +129,9 @@ data:
       volumes:
       - emptyDir: {}
         name: results
+      - configMap:
+          name: __SONOBUOY_CONFIGMAP__
+        name: config
 ---
 apiVersion: v1
 kind: Pod
@@ -164,7 +153,7 @@ spec:
       valueFrom:
         fieldRef:
           fieldPath: status.podIP
-    image: gcr.io/heptio-images/sonobuoy:v0.10.0
+    image: gcr.io/heptio-images/sonobuoy:v0.9.0
     imagePullPolicy: Always
     name: kube-sonobuoy
     volumeMounts:
@@ -202,4 +191,3 @@ spec:
   selector:
     run: sonobuoy-master
   type: ClusterIP
-
